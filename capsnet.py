@@ -10,7 +10,7 @@ class Capsnet(nn.Module):
 
     # A simple capsnet with 3 layers
     def __init__(self, num_input_conv_layer, num_output_conv_layer, conv_kernel_dim, conv_kernel_stride, num_primary_unit, primary_unit_size,
-                 num_classes, output_unit_size, num_routing, cuda_enabled, regularization_scale):
+                 num_classes, output_unit_size, num_routing, cuda_enabled):
 
         super(Capsnet, self).__init__()
 
@@ -20,8 +20,6 @@ class Capsnet(nn.Module):
         self.image_width = 28
         self.image_height = 28
         self.image_channels = 1
-
-        self.regularization = regularization_scale # SSE regularization scale
 
         # Layer 1 : Convolutional Layer
         self.conv1 = nn.Conv2d(in_channels=num_input_conv_layer, out_channels=num_output_conv_layer,
@@ -37,10 +35,7 @@ class Capsnet(nn.Module):
                                unit_size=primary_unit_size,
                                use_routing=False,
                                num_routing=num_routing,
-                               cuda_enabled=cuda_enabled,
-                               conv_kernel_size=9,
-                               num_conv_output=32,
-                               conv_kernel_stride=2
+                               cuda_enabled=cuda_enabled
                                )
 
         # DigitCaps layer
@@ -51,10 +46,7 @@ class Capsnet(nn.Module):
                               unit_size=output_unit_size,  # 16D capsule per digit class
                               use_routing=True,
                               num_routing=num_routing,
-                              cuda_enabled=cuda_enabled,
-                              conv_kernel_size=9,
-                              num_conv_output=32,
-                              conv_kernel_stride=2
+                              cuda_enabled=cuda_enabled
                               )
 
 

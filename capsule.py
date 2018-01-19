@@ -1,11 +1,13 @@
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Variable
+import utils
 
 
 class Capsule(nn.Module):
-    def __init__(self, in_unit, in_channel, num_unit, unit_size, use_routing, num_routing, cuda_enabled, conv_kernel_size,num_conv_output, conv_kernel_stride):
+    def __init__(self, in_unit, in_channel, num_unit, unit_size, use_routing,
+num_routing, cuda_enabled):
 
         super(Capsule, self).__init__()
 
@@ -15,9 +17,6 @@ class Capsule(nn.Module):
         self.use_routing = use_routing
         self.num_routing = num_routing
         self.cuda_enabled = cuda_enabled
-        self.conv_kernel_size = conv_kernel_size
-        self.conv_kernel_stride = conv_kernel_stride
-        self.num_conv_output = num_conv_output
 
 
         if self.use_routing:
@@ -38,7 +37,7 @@ class Capsule(nn.Module):
             """
             # Define 8 convolutional units.
             self.conv_units = nn.ModuleList([
-                nn.Conv2d(self.in_channel, self.num_conv_output, self.conv_kernel_size, self.conv_kernel_stride) for u in range(self.num_unit)
+                nn.Conv2d(self.in_channel, 32, 9, 2) for u in range(self.num_unit)
             ])
 
     @staticmethod
@@ -67,26 +66,30 @@ class Capsule(nn.Module):
 
 
         batch_size = x.size(0)
+
         x = x.transpose(1,2)
-        x = torch.stack([x] * self.num_output_channels, dim=2).unsqueeze(4)
+        print(x.shape)
+        x = torch.stack([x] * self.num_unit, dim=2).unsqueeze(4)
 
-        batch_weight = torch.cat([self.route_weights] * batch_size, dim=0)
 
+        batch_weight = torch.cat([self.weight] * batch_size, dim=0)
+
+        print(batch_weight.shape, x.shape)
         u_hat = torch.matmul(batch_weight, x)
 
         # All the routing logits (b_ij in the paper) are initialized to zero.
-        b_ij = Variable(torch.zeros(1, self.num_input_channels, self.num_output_channels, 1))
+        b_ij = Variable(torch.zeros(1, self.in_channel, self.num_unit, 1))
         if self.cuda_enabled:
             b_ij = b_ij.cuda()
 
 
         # Paper uses 3 routing iterations
 
-        for iteration in range(self.num_iterations):
+        for iteration in range(self.num_routing):
             # Routing algorithm
 
             # Calculate routing coefficients
-            c_ij = utils.softmax(b_ij, dim=2)
+            c_ij = F.softmax(b_ij, dim=2)
             c_ij = torch.cat([c_ij] * batch_size, dim=0).unsqueeze(4)
 
 
@@ -103,6 +106,9 @@ class Capsule(nn.Module):
 
             # Update routing (b_ij) by adding the agreement to the initial logit.
             b_ij = b_ij + u_vj1
+
+
+        print(v_j.shape)
 
         return v_j.squeeze(1)
 
